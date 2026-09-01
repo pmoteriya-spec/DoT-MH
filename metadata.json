@@ -1,0 +1,11 @@
+{
+  "name": "Remix Remix: Maharashtra Tourism Gamification",
+  "description": "A gamified tourism mobile application prototype featuring circuits, interactive maps, quizzes, and a digital passport.",
+  "requestFramePermissions": [
+    "geolocation",
+    "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
