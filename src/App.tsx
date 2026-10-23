@@ -7,12 +7,14 @@ import MapTab from './components/MapTab';
 import QuizTab from './components/QuizTab';
 import PassportTab from './components/PassportTab';
 import ProfileTab from './components/ProfileTab';
+import ServicesTab from './components/ServicesTab';
 import StampCelebrationModal from './components/StampCelebrationModal';
 import UserAnalyticsPortal from './components/UserAnalyticsPortal';
 import OfficialPortal from './components/OfficialPortal';
 import MaharashtraLogo from './components/MaharashtraLogo';
-import { UserProfile, Challenge, Destination, AppNotification, Circuit, District, Category } from './types';
+import { UserProfile, Challenge, Destination, AppNotification, Circuit, District, Category, CarService, GuideService, ActivityService, Artisan, PermitApplication, Booking, ArtisanRegistration, DriverRegistration, GuideRegistration, Review } from './types';
 import { CHALLENGES, DESTINATIONS, CIRCUITS, DISTRICTS, CATEGORIES } from './data';
+import { INITIAL_CARS, INITIAL_GUIDES, INITIAL_ACTIVITIES, INITIAL_ARTISANS, INITIAL_PERMIT_APPLICATIONS, INITIAL_BOOKINGS } from './servicesData';
 import { 
   Compass, 
   MapPin, 
@@ -23,6 +25,7 @@ import {
   MessageSquare,
   Sparkles, 
   Layers, 
+  Car, 
   Tv, 
   TrendingUp, 
   Terminal, 
@@ -134,7 +137,7 @@ const PROPOSAL_COST_ITEMS = [
 
 export default function App() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [activeTab, setActiveTab] = useState<'discover' | 'quiz' | 'passport' | 'profile'>('discover');
+  const [activeTab, setActiveTab] = useState<'discover' | 'services' | 'quiz' | 'passport' | 'profile'>('discover');
   const [selectedDestinationId, setSelectedDestinationId] = useState<string | null>(null);
   const [activeChallenges, setActiveChallenges] = useState<Challenge[]>(CHALLENGES);
 
@@ -143,6 +146,69 @@ export default function App() {
   const [circuits, setCircuits] = useState<Circuit[]>(CIRCUITS);
   const [districts, setDistricts] = useState<District[]>(DISTRICTS);
   const [categories, setCategories] = useState<Category[]>(CATEGORIES);
+
+  // Services, Artisans, Permits & Bookings state
+  const [cars, setCars] = useState<CarService[]>(INITIAL_CARS);
+  const [guides, setGuides] = useState<GuideService[]>(INITIAL_GUIDES);
+  const [activities, setActivities] = useState<ActivityService[]>(INITIAL_ACTIVITIES);
+  const [artisans, setArtisans] = useState<Artisan[]>(INITIAL_ARTISANS);
+  const [permits, setPermits] = useState<PermitApplication[]>(INITIAL_PERMIT_APPLICATIONS);
+  const [bookings, setBookings] = useState<Booking[]>(INITIAL_BOOKINGS);
+  const [artisanRegistrations, setArtisanRegistrations] = useState<ArtisanRegistration[]>([
+    {
+      id: 'MH-ART-2026-1049',
+      artisanName: 'Balu Shriram Potdukhe',
+      craftType: 'Warli Tribal Art & Murals (Palghar/Dahanu)',
+      district: 'Palghar',
+      village: 'Ganjad, Dahanu',
+      phone: '+91 94210 88291',
+      experienceYears: 18,
+      artisanCardNo: 'MH-GI-WARLI-0120',
+      sampleDescription: 'Specializes in wedding chowk designs and natural herbal pigments.',
+      workshopOffered: true,
+      submittedAt: '18 Oct 2026',
+      status: 'pending'
+    }
+  ]);
+  const [driverRegistrations, setDriverRegistrations] = useState<DriverRegistration[]>([
+    {
+      id: 'MH-CAB-2026-4821',
+      driverName: 'Sachin Ramdas Jadhav',
+      phone: '+91 98220 54129',
+      licenseNo: 'MH-12-2015-0048192',
+      rtoBadgeNo: 'RTO-PUN-CM-8821',
+      vehicleModel: 'Maruti Suzuki Ertiga ZXi+ Hybrid',
+      vehicleCategory: 'suv',
+      vehiclePlateNo: 'MH-12-TC-9481',
+      capacity: 6,
+      ac: true,
+      districtsCovered: ['pune', 'satara', 'raigad'],
+      basePrice: 3200,
+      priceUnit: 'per day (300 km included)',
+      experienceYears: 11,
+      ghatExpert: true,
+      submittedAt: '19 Oct 2026',
+      status: 'pending'
+    }
+  ]);
+  const [guideRegistrations, setGuideRegistrations] = useState<GuideRegistration[]>([
+    {
+      id: 'MH-GD-2026-7319',
+      guideName: 'Prashant Pandurang Kulkarni',
+      phone: '+91 98901 34912',
+      email: 'prashant.heritage@gmail.com',
+      licenseNo: 'MTDC-RLG-2022-048',
+      specialization: 'Maratha Forts & Shivaji Military Architecture',
+      districts: ['raigad', 'pune', 'satara'],
+      languages: ['Marathi', 'English', 'Hindi'],
+      experienceYears: 9,
+      pricePerDay: 2400,
+      bio: 'Historian and certified Sahyadri trek leader specialized in Raigad, Rajgad, and Sinhagad battle histories.',
+      submittedAt: '20 Oct 2026',
+      status: 'pending'
+    }
+  ]);
+
 
   // Fetch travel database on load
   useEffect(() => {
@@ -771,6 +837,223 @@ export default function App() {
     }
   };
 
+  // Service, Artisan, Permit and Review Handlers
+  const handleAddBooking = (newBooking: Booking, xpDeducted: number) => {
+    setBookings(prev => [newBooking, ...prev]);
+    if (xpDeducted > 0) {
+      updateXp(-xpDeducted);
+    }
+    addLog(`New booking confirmed: ${newBooking.serviceTitle} (PNR: ${newBooking.id}) via ${newBooking.paymentMethod.toUpperCase()}`, 'success');
+    triggerPushNotification(
+      '🎟️ Booking Confirmed!',
+      `Your booking for ${newBooking.serviceTitle} on ${newBooking.date} is confirmed (PNR: ${newBooking.id}).`,
+      'achievement'
+    );
+  };
+
+  const handleCancelBooking = (bookingId: string) => {
+    setBookings(prev => prev.filter(b => b.id !== bookingId));
+    addLog(`Booking ${bookingId} cancelled by traveler.`, 'info');
+    triggerPushNotification(
+      'Booking Cancelled',
+      `Your booking ${bookingId} has been cancelled. Refund initiated to source.`,
+      'alert'
+    );
+  };
+
+  const handleAddReview = (serviceType: 'car' | 'guide' | 'activity' | 'artisan', serviceId: string, review: Review) => {
+    if (serviceType === 'car') {
+      setCars(prev => prev.map(c => {
+        if (c.id !== serviceId) return c;
+        const updatedReviews = [review, ...c.reviews];
+        const newRating = Number((updatedReviews.reduce((sum, r) => sum + r.rating, 0) / updatedReviews.length).toFixed(1));
+        return { ...c, reviews: updatedReviews, rating: newRating, reviewCount: updatedReviews.length };
+      }));
+    } else if (serviceType === 'guide') {
+      setGuides(prev => prev.map(g => {
+        if (g.id !== serviceId) return g;
+        const updatedReviews = [review, ...g.reviews];
+        const newRating = Number((updatedReviews.reduce((sum, r) => sum + r.rating, 0) / updatedReviews.length).toFixed(2));
+        return { ...g, reviews: updatedReviews, rating: newRating, reviewCount: updatedReviews.length };
+      }));
+    } else if (serviceType === 'activity') {
+      setActivities(prev => prev.map(a => {
+        if (a.id !== serviceId) return a;
+        const updatedReviews = [review, ...a.reviews];
+        const newRating = Number((updatedReviews.reduce((sum, r) => sum + r.rating, 0) / updatedReviews.length).toFixed(2));
+        return { ...a, reviews: updatedReviews, rating: newRating, reviewCount: updatedReviews.length };
+      }));
+    } else if (serviceType === 'artisan') {
+      setArtisans(prev => prev.map(art => {
+        if (art.id !== serviceId) return art;
+        const updatedReviews = [review, ...art.reviews];
+        const newRating = Number((updatedReviews.reduce((sum, r) => sum + r.rating, 0) / updatedReviews.length).toFixed(2));
+        return { ...art, reviews: updatedReviews, rating: newRating, reviewCount: updatedReviews.length };
+      }));
+    }
+    updateXp(25);
+    addLog(`Traveler posted a review for ${serviceId} (+25 XP awarded)`, 'success');
+    triggerPushNotification(
+      '⭐ Review Published (+25 XP)',
+      `Thank you for reviewing! Your feedback helps other travelers across Maharashtra.`,
+      'achievement'
+    );
+  };
+
+  const handleRegisterArtisan = (reg: ArtisanRegistration) => {
+    setArtisanRegistrations(prev => [reg, ...prev]);
+    addLog(`New artisan registration submitted: ${reg.artisanName} (${reg.craftType}, ${reg.district})`, 'info');
+    triggerPushNotification(
+      '🎨 Artisan Application Received',
+      `Application ${reg.id} submitted for MTDC verification. Thank you for preserving Maharashtra heritage!`,
+      'tip'
+    );
+  };
+
+  const handleIssuePermit = (permit: PermitApplication) => {
+    setPermits(prev => [permit, ...prev]);
+    addLog(`Official Permit issued: ${permit.title} for ${permit.applicantName} (${permit.id})`, 'success');
+    triggerPushNotification(
+      '📜 Official E-Permit Issued',
+      `Your entry permit for ${permit.destinationName} has been approved and issued!`,
+      'achievement'
+    );
+  };
+
+  const handleApproveArtisan = (regId: string) => {
+    setArtisanRegistrations(prev => prev.map(r => r.id === regId ? { ...r, status: 'approved' } : r));
+    addLog(`Artisan application ${regId} approved by MTDC Administrator.`, 'success');
+  };
+
+  const handleApprovePermit = (pmtId: string) => {
+    setPermits(prev => prev.map(p => p.id === pmtId ? { ...p, status: 'approved' } : p));
+    addLog(`Permit ${pmtId} approved & issued by MTDC Administrator.`, 'success');
+  };
+
+  const handleRegisterDriver = (reg: DriverRegistration) => {
+    setDriverRegistrations(prev => [reg, ...prev]);
+    addLog(`New cab driver application submitted: ${reg.driverName} (${reg.vehicleModel}, ${reg.vehiclePlateNo})`, 'info');
+    triggerPushNotification(
+      '🚖 Cab Application Received',
+      `Application ${reg.id} submitted for MTDC verification. RTO verification in progress!`,
+      'tip'
+    );
+  };
+
+  const handleRegisterGuide = (reg: GuideRegistration) => {
+    setGuideRegistrations(prev => [reg, ...prev]);
+    addLog(`New tour guide application submitted: ${reg.guideName} (${reg.specialization})`, 'info');
+    triggerPushNotification(
+      '🎓 Guide Accreditation Lodged',
+      `Application ${reg.id} submitted for MTDC verification. Thank you for showcasing Maharashtra!`,
+      'tip'
+    );
+  };
+
+  const handleApproveDriver = (regId: string) => {
+    const reg = driverRegistrations.find(r => r.id === regId);
+    setDriverRegistrations(prev => prev.map(r => r.id === regId ? { ...r, status: 'approved' } : r));
+    if (reg) {
+      const newCar: CarService = {
+        id: `car_${reg.id.toLowerCase().replace(/[^a-z0-9]/g, '_')}`,
+        name: `${reg.vehicleModel} (${reg.driverName.split(' ')[0]})`,
+        nameMr: `${reg.vehicleModel} (${reg.driverName})`,
+        category: reg.vehicleCategory,
+        vehicleModel: reg.vehicleModel,
+        capacity: reg.capacity,
+        luggageCount: 4,
+        ac: reg.ac,
+        basePrice: reg.basePrice,
+        priceUnit: reg.priceUnit,
+        districtsCovered: reg.districtsCovered,
+        driverName: reg.driverName,
+        driverPhone: reg.phone,
+        driverRating: 5.0,
+        reviewCount: 1,
+        rating: 5.0,
+        imageUrl: reg.vehicleCategory === 'suv'
+          ? 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=800&q=80'
+          : 'https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=800&q=80',
+        features: [
+          reg.ghatExpert ? 'Certified Ghats Hill Expert' : 'City & Highway Expert',
+          reg.ac ? 'Chilled AC' : 'Non-AC',
+          'Commercial Yellow Plate Verified',
+          'Zero Cancellation Guaranteed'
+        ],
+        reviews: [
+          {
+            id: `rev_${Date.now()}`,
+            serviceId: `car_${reg.id}`,
+            userName: 'MTDC Inspection Wing',
+            rating: 5,
+            comment: `Vehicle ${reg.vehiclePlateNo} verified and cleared with RTO Badge ${reg.rtoBadgeNo}.`,
+            date: 'Just now',
+            tag: 'MTDC Verified',
+            helpfulCount: 3,
+            verifiedBooking: true
+          }
+        ],
+        available: true
+      };
+      setCars(prev => [newCar, ...prev]);
+    }
+    addLog(`Commercial Cab Application ${regId} approved by MTDC Administrator. Added to live fleet!`, 'success');
+    triggerPushNotification(
+      '🚖 Cab Application Approved!',
+      `Commercial cab ${reg?.vehiclePlateNo} (${reg?.driverName}) has been approved and listed on MahaPassport!`,
+      'achievement'
+    );
+  };
+
+  const handleApproveGuide = (regId: string) => {
+    const reg = guideRegistrations.find(r => r.id === regId);
+    setGuideRegistrations(prev => prev.map(r => r.id === regId ? { ...r, status: 'approved' } : r));
+    if (reg) {
+      const newGuide: GuideService = {
+        id: `guide_${reg.id.toLowerCase().replace(/[^a-z0-9]/g, '_')}`,
+        name: reg.guideName,
+        nameMr: reg.guideName,
+        specialization: reg.specialization,
+        specializationMr: reg.specialization,
+        districts: reg.districts,
+        destinationsCovered: reg.districts.map(d => d.toUpperCase()),
+        languages: reg.languages,
+        experienceYears: reg.experienceYears,
+        pricePerDay: reg.pricePerDay,
+        pricePerHalfDay: Math.round(reg.pricePerDay * 0.6),
+        mtdcCertified: true,
+        licenseNumber: reg.licenseNo,
+        rating: 5.0,
+        reviewCount: 1,
+        imageUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
+        bio: reg.bio,
+        bioMr: reg.bio,
+        badges: ['MTDC Certified', 'Official Historian', 'Heritage Expert'],
+        reviews: [
+          {
+            id: `rev_g_${Date.now()}`,
+            serviceId: `guide_${reg.id}`,
+            userName: 'MTDC Directorate',
+            rating: 5,
+            comment: `Official credentials and license ${reg.licenseNo} verified by MTDC Heritage Board.`,
+            date: 'Just now',
+            tag: 'Govt Certified',
+            helpfulCount: 5,
+            verifiedBooking: true
+          }
+        ],
+        available: true
+      };
+      setGuides(prev => [newGuide, ...prev]);
+    }
+    addLog(`Tour Guide Accreditation ${regId} approved by MTDC Administrator. Added to guide directory!`, 'success');
+    triggerPushNotification(
+      '🎓 Guide Accreditation Granted!',
+      `Guide ${reg?.guideName} (${reg?.licenseNo}) is now certified and listed on MahaPassport!`,
+      'achievement'
+    );
+  };
+
   // Dynamic statistics
   return (
     <div className="min-h-screen bg-[#13110E] text-slate-100 font-sans flex flex-col lg:flex-row relative overflow-hidden antialiased">
@@ -795,6 +1078,15 @@ export default function App() {
             profile={profile}
             auditLogs={auditLogs}
             notifications={notifications}
+            bookings={bookings}
+            permits={permits}
+            artisanRegistrations={artisanRegistrations}
+            driverRegistrations={driverRegistrations}
+            guideRegistrations={guideRegistrations}
+            onApproveArtisan={handleApproveArtisan}
+            onApprovePermit={handleApprovePermit}
+            onApproveDriver={handleApproveDriver}
+            onApproveGuide={handleApproveGuide}
             language={language}
             onTriggerAlert={(title, body, type, destinationId) => triggerPushNotification(title, body, type, destinationId)}
             userLat={userLat}
@@ -891,6 +1183,26 @@ export default function App() {
                     />
                   )}
 
+                  {activeTab === 'services' && (
+                    <ServicesTab
+                      profile={profile}
+                      language={language}
+                      cars={cars}
+                      guides={guides}
+                      activities={activities}
+                      artisans={artisans}
+                      permits={permits}
+                      bookings={bookings}
+                      onAddBooking={handleAddBooking}
+                      onCancelBooking={handleCancelBooking}
+                      onAddReview={handleAddReview}
+                      onRegisterArtisan={handleRegisterArtisan}
+                      onRegisterDriver={handleRegisterDriver}
+                      onRegisterGuide={handleRegisterGuide}
+                      onIssuePermit={handleIssuePermit}
+                    />
+                  )}
+
                   {activeTab === 'quiz' && (
                     <QuizTab
                       profile={profile}
@@ -950,7 +1262,7 @@ export default function App() {
                       setActiveTab('discover');
                       setSelectedDestinationId(null);
                     }}
-                    className={`flex flex-col items-center justify-center gap-1 py-1.5 px-3 rounded-xl transition cursor-pointer ${activeTab === 'discover' ? 'text-amber-400 font-bold bg-amber-500/10' : 'text-amber-200/50 hover:text-amber-100'}`}
+                    className={`flex flex-col items-center justify-center gap-1 py-1.5 px-2 rounded-xl transition cursor-pointer ${activeTab === 'discover' ? 'text-amber-400 font-bold bg-amber-500/10' : 'text-amber-200/50 hover:text-amber-100'}`}
                   >
                     <Compass className="w-4 h-4" />
                     <span className="text-[9px] uppercase tracking-wider">Explore</span>
@@ -959,10 +1271,22 @@ export default function App() {
                   <button
                     type="button"
                     onClick={() => {
+                      setActiveTab('services');
+                      setSelectedDestinationId(null);
+                    }}
+                    className={`flex flex-col items-center justify-center gap-1 py-1.5 px-2 rounded-xl transition cursor-pointer ${activeTab === 'services' ? 'text-amber-400 font-bold bg-amber-500/10' : 'text-amber-200/50 hover:text-amber-100'}`}
+                  >
+                    <Car className="w-4 h-4" />
+                    <span className="text-[9px] uppercase tracking-wider">Services</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
                       setActiveTab('quiz');
                       setSelectedDestinationId(null);
                     }}
-                    className={`flex flex-col items-center justify-center gap-1 py-1.5 px-3 rounded-xl transition cursor-pointer ${activeTab === 'quiz' ? 'text-amber-400 font-bold bg-amber-500/10' : 'text-amber-200/50 hover:text-amber-100'}`}
+                    className={`flex flex-col items-center justify-center gap-1 py-1.5 px-2 rounded-xl transition cursor-pointer ${activeTab === 'quiz' ? 'text-amber-400 font-bold bg-amber-500/10' : 'text-amber-200/50 hover:text-amber-100'}`}
                   >
                     <Award className="w-4 h-4" />
                     <span className="text-[9px] uppercase tracking-wider">Quizzes</span>

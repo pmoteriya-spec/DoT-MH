@@ -30,15 +30,27 @@ import {
   Check,
   Compass,
   Sparkles,
-  Bell
+  Bell,
+  Car,
+  Palette,
+  CreditCard
 } from 'lucide-react';
-import { UserProfile, AppNotification, Destination, Circuit, District, Category, Badge, SelfieSubmission, Quiz, QuizQuestion, TouristSpot } from '../types';
+import { UserProfile, AppNotification, Destination, Circuit, District, Category, Badge, SelfieSubmission, Quiz, QuizQuestion, TouristSpot, Booking, PermitApplication, ArtisanRegistration, DriverRegistration, GuideRegistration } from '../types';
 import { STATIC_QUIZZES } from '../data';
 
 interface UserAnalyticsPortalProps {
   profile: UserProfile | null;
   auditLogs: { id: string; timestamp: string; action: string; type: 'info' | 'success' | 'warn' | 'system' }[];
   notifications?: AppNotification[];
+  bookings?: Booking[];
+  permits?: PermitApplication[];
+  artisanRegistrations?: ArtisanRegistration[];
+  driverRegistrations?: DriverRegistration[];
+  guideRegistrations?: GuideRegistration[];
+  onApproveArtisan?: (regId: string) => void;
+  onApprovePermit?: (pmtId: string) => void;
+  onApproveDriver?: (regId: string) => void;
+  onApproveGuide?: (regId: string) => void;
   language: 'en' | 'mr';
   onTriggerAlert?: (title: string, body: string, type: 'alert' | 'tip' | 'achievement' | 'nearby', destinationId?: string) => void;
   userLat: number;
@@ -54,12 +66,21 @@ interface UserAnalyticsPortalProps {
   onSaveTravelData: (newDests: Destination[], newCircs: Circuit[], newDistricts?: District[], newCategories?: Category[]) => void;
 }
 
-type TabType = 'dashboard' | 'gps' | 'travelers' | 'quiz' | 'gamification' | 'passport' | 'locations' | 'circuits' | 'pois' | 'districts_categories' | 'badges' | 'reports';
+type TabType = 'dashboard' | 'services' | 'gps' | 'travelers' | 'quiz' | 'gamification' | 'passport' | 'locations' | 'circuits' | 'pois' | 'districts_categories' | 'badges' | 'reports';
 
 export default function UserAnalyticsPortal({
   profile,
   auditLogs,
   notifications = [],
+  bookings = [],
+  permits = [],
+  artisanRegistrations = [],
+  driverRegistrations = [],
+  guideRegistrations = [],
+  onApproveArtisan,
+  onApprovePermit,
+  onApproveDriver,
+  onApproveGuide,
   language,
   onTriggerAlert,
   userLat,
@@ -75,6 +96,7 @@ export default function UserAnalyticsPortal({
   onSaveTravelData
 }: UserAnalyticsPortalProps) {
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
+
   
   // Static Login States
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
@@ -257,6 +279,7 @@ export default function UserAnalyticsPortal({
   // Render sub-tabs navigation
   const tabs = [
     { id: 'dashboard', label: 'Dashboard', icon: Activity, desc: 'Core platform overview and KPIs' },
+    { id: 'services', label: 'Services & Artisans', icon: Sparkles, desc: 'Review artisan applications, monitor car/guide bookings and permits' },
     { id: 'locations', label: 'Manage Locations', icon: MapPin, desc: 'Add, edit, or delete tourist destinations' },
     { id: 'circuits', label: 'Manage Circuits', icon: SlidersHorizontal, desc: 'Add, edit, or delete tourist circuits' },
     { id: 'pois', label: 'Manage POIs', icon: Compass, desc: 'Add, edit, or delete points of interest' },
@@ -612,6 +635,385 @@ export default function UserAnalyticsPortal({
             )}
 
           
+          </div>
+        )}
+
+        {/* TAB: SERVICES, BOOKINGS & ARTISAN GOVERNANCE */}
+        {activeTab === 'services' && (
+          <div className="space-y-4 animate-fadeIn text-left text-xs">
+            {/* Header telemetry banner */}
+            <div className="p-3.5 bg-slate-950 border border-slate-850 rounded-2xl space-y-3">
+              <div className="flex justify-between items-center">
+                <div>
+                  <span className="text-[8px] font-black uppercase text-amber-500 tracking-wider block mb-0.5">
+                    MTDC Commerce & Enterprise Desk
+                  </span>
+                  <h3 className="text-xs font-black text-white uppercase">
+                    Services, Drivers, Guides & Artisans
+                  </h3>
+                </div>
+                <span className="px-2 py-0.5 rounded-full text-[8px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/30 font-mono">
+                  LIVE DESK
+                </span>
+              </div>
+
+              {/* KPIs Grid */}
+              <div className="grid grid-cols-5 gap-1.5 text-center">
+                <div className="p-2 bg-slate-900 border border-slate-800 rounded-xl">
+                  <span className="text-[7px] text-slate-400 uppercase font-bold block truncate">Bookings</span>
+                  <span className="text-xs font-black text-white font-mono">{bookings.length}</span>
+                </div>
+                <div className="p-2 bg-slate-900 border border-slate-800 rounded-xl">
+                  <span className="text-[7px] text-slate-400 uppercase font-bold block truncate">Revenue</span>
+                  <span className="text-xs font-black text-emerald-400 font-mono">
+                    ₹{bookings.reduce((sum, b) => sum + b.finalPaidAmount, 0).toLocaleString()}
+                  </span>
+                </div>
+                <div className="p-2 bg-slate-900 border border-slate-800 rounded-xl">
+                  <span className="text-[7px] text-slate-400 uppercase font-bold block truncate">Cabs (Pending)</span>
+                  <span className="text-xs font-black text-amber-400 font-mono">
+                    {driverRegistrations.filter(r => r.status === 'pending').length} / {driverRegistrations.length}
+                  </span>
+                </div>
+                <div className="p-2 bg-slate-900 border border-slate-800 rounded-xl">
+                  <span className="text-[7px] text-slate-400 uppercase font-bold block truncate">Guides (Pending)</span>
+                  <span className="text-xs font-black text-cyan-400 font-mono">
+                    {guideRegistrations.filter(r => r.status === 'pending').length} / {guideRegistrations.length}
+                  </span>
+                </div>
+                <div className="p-2 bg-slate-900 border border-slate-800 rounded-xl">
+                  <span className="text-[7px] text-slate-400 uppercase font-bold block truncate">Artisans</span>
+                  <span className="text-xs font-black text-purple-400 font-mono">
+                    {artisanRegistrations.length}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* CAB & DRIVER ONBOARDING APPLICATIONS DESK */}
+            <div className="p-3.5 bg-slate-950 border border-slate-850 rounded-2xl space-y-3">
+              <div className="flex justify-between items-center">
+                <h4 className="text-[9px] font-black uppercase text-amber-400 tracking-wider flex items-center gap-1.5">
+                  <Car className="w-3.5 h-3.5" />
+                  Commercial Cab & Driver Applications ({driverRegistrations.length})
+                </h4>
+                <span className="text-[8px] text-slate-500 font-mono">RTO / MTDC Transport Cell</span>
+              </div>
+
+              {driverRegistrations.length === 0 ? (
+                <p className="text-[9px] text-slate-500 italic py-2">No commercial cab applications lodged yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {driverRegistrations.map((driver) => (
+                    <div key={driver.id} className="p-3 bg-slate-900 border border-slate-800 rounded-xl space-y-2">
+                      <div className="flex justify-between items-start">
+                        <div className="min-w-0 pr-2">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-white text-xs">{driver.driverName}</span>
+                            <span className={`px-1.5 py-0.2 rounded text-[7px] font-bold uppercase font-mono ${
+                              driver.status === 'approved'
+                                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                                : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                            }`}>
+                              {driver.status}
+                            </span>
+                          </div>
+                          <span className="text-[9px] text-amber-400 block font-medium mt-0.5">
+                            {driver.vehicleModel} • Plate: <span className="font-mono">{driver.vehiclePlateNo}</span>
+                          </span>
+                        </div>
+                        <span className="text-[7px] text-slate-500 font-mono shrink-0">{driver.id}</span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-[8px] text-slate-400 bg-slate-950 p-2 rounded-lg">
+                        <div>
+                          <span>Driving License: <b className="text-slate-200 font-mono">{driver.licenseNo}</b></span>
+                        </div>
+                        <div>
+                          <span>RTO Badge: <b className="text-slate-200 font-mono">{driver.rtoBadgeNo}</b></span>
+                        </div>
+                        <div>
+                          <span>Phone: <b className="text-slate-200">{driver.phone}</b></span>
+                        </div>
+                        <div>
+                          <span>Tariff / Day: <b className="text-amber-400 font-mono">₹{driver.basePrice}/day</b></span>
+                        </div>
+                        <div>
+                          <span>Category & Seats: <b className="text-slate-200 uppercase">{driver.vehicleCategory} ({driver.capacity} Seats)</b></span>
+                        </div>
+                        <div>
+                          <span>Experience & Ghats: <b className="text-emerald-400">{driver.experienceYears} Yrs {driver.ghatExpert ? '(Ghats Certified)' : ''}</b></span>
+                        </div>
+                      </div>
+
+                      <div className="text-[8px] text-slate-400 flex flex-wrap gap-1 items-center">
+                        <span className="font-bold">Districts:</span>
+                        {driver.districtsCovered.map((d, i) => (
+                          <span key={i} className="px-1.5 py-0.5 bg-slate-950 border border-slate-800 rounded uppercase font-mono text-slate-300">
+                            {d}
+                          </span>
+                        ))}
+                      </div>
+
+                      <div className="flex justify-end gap-1.5 pt-1">
+                        {driver.status === 'pending' ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (onApproveDriver) onApproveDriver(driver.id);
+                              addLog(`Admin approved Commercial Cab Permit for ${driver.driverName} (${driver.vehiclePlateNo})`, 'success');
+                            }}
+                            className="px-2.5 py-1 bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-lg text-[8px] font-bold uppercase tracking-wider transition active:scale-95 cursor-pointer"
+                          >
+                            ✓ Approve Commercial Cab
+                          </button>
+                        ) : (
+                          <span className="text-[8px] text-emerald-400 font-mono font-bold">
+                            ✓ Verified Commercial Taxi & Listed on Fleet
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* TOUR GUIDE ACCREDITATION APPLICATIONS DESK */}
+            <div className="p-3.5 bg-slate-950 border border-slate-850 rounded-2xl space-y-3">
+              <div className="flex justify-between items-center">
+                <h4 className="text-[9px] font-black uppercase text-cyan-400 tracking-wider flex items-center gap-1.5">
+                  <Award className="w-3.5 h-3.5" />
+                  Tour Guide Accreditation Applications ({guideRegistrations.length})
+                </h4>
+                <span className="text-[8px] text-slate-500 font-mono">MTDC Historian & Guide Registry</span>
+              </div>
+
+              {guideRegistrations.length === 0 ? (
+                <p className="text-[9px] text-slate-500 italic py-2">No tour guide accreditation applications lodged yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {guideRegistrations.map((guide) => (
+                    <div key={guide.id} className="p-3 bg-slate-900 border border-slate-800 rounded-xl space-y-2">
+                      <div className="flex justify-between items-start">
+                        <div className="min-w-0 pr-2">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-white text-xs">{guide.guideName}</span>
+                            <span className={`px-1.5 py-0.2 rounded text-[7px] font-bold uppercase font-mono ${
+                              guide.status === 'approved'
+                                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                                : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                            }`}>
+                              {guide.status}
+                            </span>
+                          </div>
+                          <span className="text-[9px] text-cyan-400 block font-medium mt-0.5">
+                            {guide.specialization}
+                          </span>
+                        </div>
+                        <span className="text-[7px] text-slate-500 font-mono shrink-0">{guide.id}</span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-[8px] text-slate-400 bg-slate-950 p-2 rounded-lg">
+                        <div>
+                          <span>Badge / License: <b className="text-slate-200 font-mono">{guide.licenseNo}</b></span>
+                        </div>
+                        <div>
+                          <span>Phone: <b className="text-slate-200">{guide.phone}</b></span>
+                        </div>
+                        <div>
+                          <span>Tariff / Day: <b className="text-amber-400 font-mono">₹{guide.pricePerDay}/day</b></span>
+                        </div>
+                        <div>
+                          <span>Experience: <b className="text-slate-200">{guide.experienceYears} Years</b></span>
+                        </div>
+                        <div className="col-span-2">
+                          <span>Languages: <b className="text-slate-200">{guide.languages.join(', ')}</b></span>
+                        </div>
+                      </div>
+
+                      {guide.bio && (
+                        <p className="text-[8px] text-slate-400 italic bg-slate-950/60 p-1.5 rounded">
+                          "{guide.bio}"
+                        </p>
+                      )}
+
+                      <div className="flex justify-end gap-1.5 pt-1">
+                        {guide.status === 'pending' ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (onApproveGuide) onApproveGuide(guide.id);
+                              addLog(`Admin granted MTDC Guide Accreditation to ${guide.guideName} (${guide.licenseNo})`, 'success');
+                            }}
+                            className="px-2.5 py-1 bg-cyan-500 hover:bg-cyan-400 text-slate-950 rounded-lg text-[8px] font-bold uppercase tracking-wider transition active:scale-95 cursor-pointer"
+                          >
+                            ✓ Grant MTDC Guide License
+                          </button>
+                        ) : (
+                          <span className="text-[8px] text-emerald-400 font-mono font-bold">
+                            ✓ MTDC Accredited & Published in Guide Directory
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* ARTISAN ONBOARDING APPLICATIONS DESK */}
+            <div className="p-3.5 bg-slate-950 border border-slate-850 rounded-2xl space-y-3">
+              <div className="flex justify-between items-center">
+                <h4 className="text-[9px] font-black uppercase text-amber-400 tracking-wider flex items-center gap-1.5">
+                  <Palette className="w-3.5 h-3.5" />
+                  Artisan Onboarding Applications ({artisanRegistrations.length})
+                </h4>
+                <span className="text-[8px] text-slate-500 font-mono">GI Verification Cell</span>
+              </div>
+
+              {artisanRegistrations.length === 0 ? (
+                <p className="text-[9px] text-slate-500 italic py-2">No artisan registrations submitted yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {artisanRegistrations.map((reg) => (
+                    <div key={reg.id} className="p-3 bg-slate-900 border border-slate-800 rounded-xl space-y-2">
+                      <div className="flex justify-between items-start">
+                        <div className="min-w-0 pr-2">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-white text-xs">{reg.artisanName}</span>
+                            <span className={`px-1.5 py-0.2 rounded text-[7px] font-bold uppercase font-mono ${
+                              reg.status === 'approved'
+                                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                                : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                            }`}>
+                              {reg.status}
+                            </span>
+                          </div>
+                          <span className="text-[9px] text-amber-400 block font-medium mt-0.5">{reg.craftType}</span>
+                        </div>
+                        <span className="text-[7px] text-slate-500 font-mono shrink-0">{reg.id}</span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-[8px] text-slate-400 bg-slate-950 p-2 rounded-lg">
+                        <div>
+                          <span>Village/District: <b>{reg.village}, {reg.district}</b></span>
+                        </div>
+                        <div>
+                          <span>Experience: <b>{reg.experienceYears} Years</b></span>
+                        </div>
+                        <div>
+                          <span>Mobile: <b>{reg.phone}</b></span>
+                        </div>
+                        <div>
+                          <span>Tourist Workshops: <b>{reg.workshopOffered ? 'Offered' : 'No'}</b></span>
+                        </div>
+                      </div>
+
+                      {reg.sampleDescription && (
+                        <p className="text-[8px] text-slate-400 italic bg-slate-950/60 p-1.5 rounded">
+                          "{reg.sampleDescription}"
+                        </p>
+                      )}
+
+                      <div className="flex justify-end gap-1.5 pt-1">
+                        {reg.status === 'pending' ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (onApproveArtisan) onApproveArtisan(reg.id);
+                                addLog(`Admin approved GI Artisan registration for ${reg.artisanName}`, 'success');
+                              }}
+                              className="px-2.5 py-1 bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-lg text-[8px] font-bold uppercase tracking-wider transition active:scale-95 cursor-pointer"
+                            >
+                              ✓ Approve GI Listing
+                            </button>
+                          </>
+                        ) : (
+                          <span className="text-[8px] text-emerald-400 font-mono font-bold">
+                            ✓ Verified & Published on Artisan Village
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* CITIZEN PERMIT APPLICATIONS DESK */}
+            <div className="p-3.5 bg-slate-950 border border-slate-850 rounded-2xl space-y-3">
+              <div className="flex justify-between items-center">
+                <h4 className="text-[9px] font-black uppercase text-cyan-400 tracking-wider flex items-center gap-1.5">
+                  <FileText className="w-3.5 h-3.5" />
+                  Tourism Permits & Registrations ({permits.length})
+                </h4>
+                <span className="text-[8px] text-slate-500 font-mono">Statutory E-Passes</span>
+              </div>
+
+              <div className="space-y-2">
+                {permits.map((pmt) => (
+                  <div key={pmt.id} className="p-2.5 bg-slate-900 border border-slate-800 rounded-xl space-y-1.5">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <span className="text-[8px] font-mono text-slate-500">{pmt.id}</span>
+                        <h5 className="font-bold text-white text-[10px]">{pmt.title}</h5>
+                        <p className="text-[8px] text-slate-400">Applicant: <b>{pmt.applicantName}</b> ({pmt.visitorsCount} Guests)</p>
+                      </div>
+                      <span className="px-1.5 py-0.5 rounded text-[7px] font-bold uppercase font-mono bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                        {pmt.status}
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between items-center text-[8px] text-slate-400 pt-1 border-t border-slate-800/60">
+                      <span>Visit Date: <b>{pmt.visitDate}</b></span>
+                      <span className="font-mono text-amber-400">Fee: ₹{pmt.feePaid}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* RECENT TOURISM BOOKINGS TRANSACTIONS */}
+            <div className="p-3.5 bg-slate-950 border border-slate-850 rounded-2xl space-y-3">
+              <div className="flex justify-between items-center">
+                <h4 className="text-[9px] font-black uppercase text-slate-300 tracking-wider flex items-center gap-1.5">
+                  <CreditCard className="w-3.5 h-3.5 text-amber-400" />
+                  Recent Booking Transactions ({bookings.length})
+                </h4>
+                <span className="text-[8px] text-slate-500 font-mono">Payment Gateway Ledger</span>
+              </div>
+
+              {bookings.length === 0 ? (
+                <p className="text-[9px] text-slate-500 italic py-2">No active bookings recorded.</p>
+              ) : (
+                <div className="space-y-2">
+                  {bookings.map((b) => (
+                    <div key={b.id} className="p-2.5 bg-slate-900 border border-slate-800 rounded-xl space-y-1">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-mono text-amber-400 text-[8px] font-bold">{b.id}</span>
+                            <span className="text-[7px] uppercase font-mono text-slate-400 bg-slate-950 px-1 rounded">{b.serviceType}</span>
+                          </div>
+                          <h5 className="font-bold text-white text-[10px] mt-0.5">{b.serviceTitle}</h5>
+                          <p className="text-[8px] text-slate-400">{b.providerName}</p>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-[10px] font-black text-emerald-400 font-mono">₹{b.finalPaidAmount.toLocaleString()}</span>
+                          <span className="block text-[7px] text-slate-500 uppercase font-mono">{b.paymentMethod}</span>
+                        </div>
+                      </div>
+                      <div className="flex justify-between items-center text-[7px] text-slate-500 pt-1 border-t border-slate-800/60 font-mono">
+                        <span>Booked: {b.bookedAt}</span>
+                        <span className="text-emerald-400 font-bold uppercase">{b.bookingStatus}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
